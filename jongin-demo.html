@@ -1,0 +1,2118 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Bubble AI Demo - 카!이!</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body {
+  font-family: -apple-system, "PingFang SC", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  background: #F7F7F7;
+  max-width: 430px;
+  margin: 0 auto;
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* ========= 页面切换 ========= */
+.page { display: none; min-height: 100vh; padding-bottom: 100px; background: #F7F7F7; }
+.page.active { display: block; }
+
+/* ========= 状态栏 ========= */
+.status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 20px;
+  font-size: 12px;
+  color: #1F1F1F;
+  background: #FFF;
+}
+
+/* iPhone 信号和图标 */
+.status-icons {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* 信号格 - iPhone样式 */
+.signal {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+  margin-right: 2px;
+}
+
+.signal .bar {
+  width: 3px;
+  background: #1F1F1F;
+  border-radius: 1px;
+}
+
+.signal .bar:nth-child(1) { height: 4px; }
+.signal .bar:nth-child(2) { height: 7px; }
+.signal .bar:nth-child(3) { height: 10px; }
+.signal .bar:nth-child(4) { height: 13px; }
+.signal .bar:not(.active) { opacity: 0.3; }
+
+.wifi {
+  position: relative;
+  width: 22px;
+  height: 14px;
+}
+
+/* WiFi底部的实心圆点 */
+.wifi .dot {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 3px;
+  height: 3px;
+  background: #1F1F1F;
+  border-radius: 50%;
+}
+
+/* WiFi三条粗弧线 - 大弧度，与信号格同高 */
+.wifi .arc1,
+.wifi .arc2,
+.wifi .arc3 {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  border-top: 3px solid #1F1F1F;
+  border-left: 2px solid transparent;
+  border-right: 2px solid transparent;
+  border-bottom: none;
+  background: transparent;
+}
+
+/* 最下面的短弧线 */
+.wifi .arc1 {
+  bottom: 2px;
+  width: 10px;
+  height: 5px;
+}
+
+/* 中间的弧线 */
+.wifi .arc2 {
+  bottom: 5px;
+  width: 16px;
+  height: 8px;
+}
+
+/* 最上面的长弧线 */
+.wifi .arc3 {
+  bottom: 8px;
+  width: 22px;
+  height: 11px;
+}
+
+/* 电池 - iPhone样式，大半黑色填充 */
+.battery {
+  display: flex;
+  align-items: center;
+  margin-left: 4px;
+}
+
+.battery-body {
+  width: 25px;
+  height: 11px;
+  border: 1.5px solid #1F1F1F;
+  border-radius: 3px;
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  padding: 1px;
+}
+
+.battery-level {
+  width: 90%;
+  background: #1F1F1F;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
+.battery-tip {
+  width: 2px;
+  height: 5px;
+  background: #1F1F1F;
+  border-radius: 0 1px 1px 0;
+  margin-left: 1px;
+}
+
+/* ========= 顶部栏 ========= */
+.nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #FFF;
+  border-bottom: 1px solid #F0F0F0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.nav-bar .back, .nav-bar .right { font-size: 26px; color: #333; cursor: pointer; width: 50px; }
+.nav-bar .right { text-align: right; display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.nav-bar .title { 
+  font-size: 18px; 
+  font-weight: 700; 
+  flex: 1; 
+  text-align: center;
+  color: #1F1F1F;
+}
+.icon-btn { font-size: 20px; cursor: pointer; }
+
+/* ========= Bubble Badge (💜+N) ========= */
+/* 三个点下面，固定在右侧 */
+.bubble-badge-under-nav {
+  position: fixed;
+  top: 56px;
+  right: 12px;
+  background: #FFF;
+  border: 1px solid #EEE;
+  border-radius: 20px;
+  padding: 6px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #9B7FE8;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+  z-index: 5;
+}
+
+/* 顶部头像旁的徽章 - 右边显示 */
+.bubble-badge-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #9B7FE8;
+}
+
+/* ========= 聊天气泡 ========= */
+.chat { 
+  padding: 16px 12px;
+  padding-bottom: 80px;
+}
+
+.idol-msg { display: flex; margin-bottom: 14px; gap: 10px; animation: fadeIn 0.3s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* 头像容器 - 最外层：渐变色圆环 */
+.avatar-ring {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #C438FB 0%, #6B38FB 100%);
+  padding: 1.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 白色圆环 */
+.avatar-ring::before {
+  content: "";
+  position: absolute;
+  inset: 1.5px;
+  border-radius: 50%;
+  background: #FFF;
+}
+
+/* 圆形头像 */
+.avatar-ring img, .avatar-ring .ph {
+  position: relative;
+  width: 41px;
+  height: 41px;
+  border-radius: 50%;
+  background: #FFF;
+  object-fit: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+.idol-content { max-width: 72%; }
+.artist-tag {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 6px;
+}
+.artist-tag .badge {
+  background: linear-gradient(90deg, #6B38FB 0%, #C438FB 100%);
+  color: #FFF;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  line-height: 1.2;
+}
+.artist-tag .name { font-size: 13px; color: #333; font-weight: 600; }
+
+.idol-bubble {
+  background: #FFF;
+  border: 1px solid #EDEDED;
+  border-radius: 16px 16px 16px 4px;
+  padding: 12px 16px;
+  font-size: 15px;
+  line-height: 1.55;
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+.idol-bubble .original { color: #1F1F1F; }
+.idol-bubble .divider {
+  border-top: 1px dashed #E0E0E0;
+  margin: 10px 0;
+}
+.idol-bubble .translation {
+  color: #9C6CFF;
+  font-size: 13px;
+  line-height: 1.45;
+  margin-top: 5px;
+}
+.idol-bubble.no-translate .divider,
+.idol-bubble.no-translate .translation { display: none; }
+
+/* 气泡行：气泡 + 爱心反应 + 时间 */
+.bubble-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+/* 爱心反应组件 */
+.heart-reaction {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding-bottom: 2px;
+}
+
+.heart-reaction-box {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: #FFF;
+  border: 1px solid #EDEDED;
+  border-radius: 20px;
+  padding: 4px 8px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+  margin-bottom: 4px;
+}
+
+/* 渐变爱心SVG */
+.gradient-heart {
+  width: 14px;
+  height: 14px;
+}
+
+.timestamp { font-size: 11px; color: #BDBDBD; margin-top: auto; padding-bottom: 2px; padding-left: 4px; white-space: nowrap; }
+
+/* ========= 用户消息 v4.1 紫色版 ========= */
+.user-msg {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding-right: 4px;
+  animation: fadeIn 0.3s ease;
+}
+
+.user-time {
+  font-size: 11px;
+  color: #BDBDBD;
+  align-self: center;
+}
+
+.user-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 70%;
+}
+
+/* 已读状态圆圈 */
+.user-status {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+}
+/* 未读: 空心灰圆 */
+.user-status[data-read="false"] {
+  border: 1.5px solid #C4C4C4;
+  background: transparent;
+}
+/* 已读: 紫色实心 + 白色对勾 */
+.user-status[data-read="true"] {
+  background: #8B5CF6;
+  border: none;
+  position: relative;
+}
+.user-status[data-read="true"]::after {
+  content: "";
+  width: 8px;
+  height: 4px;
+  border-left: 2px solid #FFF;
+  border-bottom: 2px solid #FFF;
+  transform: rotate(-45deg) translate(1px, -1px);
+  display: block;
+}
+
+/* 紫色渐变气泡 */
+.user-bubble-new {
+  background: linear-gradient(90deg, #9C6CFF 0%, #8D56FF 100%);
+  color: #FFF;
+  padding: 11px 15px;
+  border-radius: 18px;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.45;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+  word-break: break-word;
+  max-width: 218px;
+}
+
+.user-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #FFE0E0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+.user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ========= 打字指示器 ========= */
+.typing-indicator {
+  display: flex; align-items: center; gap: 4px; padding: 4px 0;
+}
+.typing-dots {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.typing-dots span {
+  width: 7px; height: 7px;
+  background: #A78BFA;
+  border-radius: 50%;
+  animation: typing 1.4s infinite ease-in-out;
+}
+.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typing {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-6px); opacity: 1; }
+}
+
+/* ========= 长按菜单 ========= */
+.action-menu {
+  display: none;
+  position: fixed;
+  background: #3C3C3E;
+  border-radius: 14px;
+  padding: 10px 6px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  z-index: 1000;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 90%;
+}
+.action-menu.show { display: flex; }
+.action-menu .item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 12px;
+  color: #FFF;
+  cursor: pointer;
+  min-width: 60px;
+  border-radius: 8px;
+}
+.action-menu .item:active { background: rgba(255,255,255,0.15); }
+.action-menu .icon { font-size: 22px; margin-bottom: 5px; }
+.action-menu .label { font-size: 11px; white-space: nowrap; }
+.menu-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.2);
+  z-index: 500;
+}
+.menu-overlay.show { display: block; }
+
+/* ========= 输入框 ========= */
+.input-bar {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 430px;
+  padding: 8px 14px 28px;
+  background: #FFF;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  border-top: 1px solid #F0F0F0;
+  z-index: 100;
+}
+.input-bar input {
+  flex: 1;
+  border: none;
+  background: #F2F2F6;
+  border-radius: 20px;
+  padding: 11px 18px;
+  font-size: 15px;
+  font-family: inherit;
+  outline: none;
+}
+.input-bar input:focus { background: #E8E8EC; }
+.emoji-btn-new {
+  width: 36px; height: 36px;
+  border: none;
+  background: transparent;
+  font-size: 30px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0 2px;
+  transition: all 0.2s;
+}
+.emoji-btn-new:hover { transform: scale(1.05); }
+
+/* ========= Emoji 面板 ========= */
+.emoji-panel {
+  display: none;
+  position: fixed;
+  bottom: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 390px;
+  height: 280px;
+  background: #FFF;
+  border-top: 1px solid #EEE;
+  z-index: 100;
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+}
+.emoji-panel.show { display: block; }
+.emoji-tabs {
+  display: flex;
+  justify-content: space-around;
+  padding: 10px 0;
+  border-bottom: 1px solid #F0F0F0;
+}
+.emoji-tabs .tab {
+  font-size: 22px;
+  padding: 4px 10px;
+  cursor: pointer;
+  border-radius: 8px;
+}
+.emoji-tabs .tab.active { background: #F0F0F0; }
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+  padding: 12px;
+  overflow-y: auto;
+  height: calc(100% - 50px);
+}
+.emoji-grid span {
+  font-size: 24px;
+  text-align: center;
+  padding: 6px 0;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.emoji-grid span:active { background: #F0F0F0; }
+
+/* ========= 详情页 ========= */
+.detail-profile {
+  padding: 20px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #FFF;
+}
+.detail-profile .info h3 {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 16px; font-weight: 600; margin-bottom: 4px;
+}
+.detail-profile .info .expire {
+  font-size: 12px; color: #999;
+}
+.detail-profile .user-row {
+  padding: 4px 0;
+  display: flex; align-items: center; gap: 14px;
+}
+.detail-profile .user-info h3 { font-size: 15px; }
+
+.our-box {
+  margin: 8px 16px 20px;
+  background: #DFF7EA;
+  border-radius: 14px;
+  padding: 16px;
+  display: flex; align-items: center; justify-content: center;
+  gap: 10px;
+  font-size: 15px; font-weight: 700;
+  letter-spacing: 1px;
+  color: #222;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.our-box:active { background: #C8F5DD; }
+.our-box .heart { font-size: 22px; }
+
+.detail-list { background: #FFF; }
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  border-top: 1px solid #F0F0F0;
+  cursor: pointer;
+  font-size: 15px;
+  color: #333;
+}
+.detail-item:active { background: #F9F9F9; }
+.detail-item .value { color: #999; font-size: 13px; margin-right: 4px; }
+.detail-item .arrow { color: #CCC; font-size: 18px; }
+.detail-group { margin-top: 12px; }
+
+/* ========= 设置页通用样式 ========= */
+.settings-list, .settings-group {
+  background: #FFF;
+}
+.settings-group { margin-top: 12px; }
+.setting-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid #F5F5F5;
+  cursor: pointer;
+  font-size: 15px;
+}
+.setting-item:last-child { border-bottom: none; }
+.setting-item .label { font-weight: 500; }
+.setting-item .sub { font-size: 12px; color: #999; margin-top: 4px; }
+.setting-item .value { color: #999; font-size: 13px; }
+
+/* ========= Switch 开关 ========= */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 26px;
+}
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider {
+  position: absolute;
+  inset: 0;
+  background: #E0E0E0;
+  border-radius: 26px;
+  transition: 0.3s;
+  cursor: pointer;
+}
+.slider::before {
+  content: "";
+  position: absolute;
+  height: 22px; width: 22px;
+  left: 2px; top: 2px;
+  background: #FFF;
+  border-radius: 50%;
+  transition: 0.3s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+input:checked + .slider { background: #5EE5A5; }
+input:checked + .slider::before { transform: translateX(20px); }
+
+/* ========= Toast ========= */
+.toast {
+  display: none;
+  position: fixed;
+  bottom: 120px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.75);
+  color: #FFF;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  z-index: 9999;
+}
+.toast.show { display: block; animation: fadeIn 0.2s; }
+
+/* ========= 问候提示 ========= */
+.greeting-hint {
+  text-align: center;
+  color: #BDBDBD;
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+
+/* ========= 勋章页 ========= */
+.badge-hero {
+  position: relative;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #D8C7F0 0%, #FFE0EC 60%);
+}
+.badge-hero img {
+  width: 100%;
+  height: 45vh;
+  object-fit: cover;
+  position: absolute;
+  top: 0;
+}
+.badge-card {
+  position: absolute;
+  top: 38vh;
+  left: 16px; right: 16px;
+  background: #FFF;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+}
+.badge-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.badge-header h3 { font-size: 16px; font-weight: 700; }
+.badge-header .progress { font-size: 12px; color: #999; }
+
+.badge-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+.badge-item { text-align: center; }
+.badge-bubble {
+  width: 90px; height: 90px;
+  margin: 0 auto 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #FFF, #E7D7FA 40%, #F9B4D5 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: inset 0 -4px 10px rgba(255,255,255,0.6), 0 4px 10px rgba(247,180,213,0.4);
+}
+.badge-item.locked .badge-bubble { filter: grayscale(0.4) opacity(0.8); }
+.badge-day {
+  font-size: 22px;
+  font-weight: 800;
+  color: #A78BFA;
+  position: absolute;
+}
+.badge-emoji { font-size: 30px; position: absolute; opacity: 0.4; }
+.badge-tag {
+  position: absolute;
+  bottom: 8px;
+  font-size: 8px;
+  color: #E56B9E;
+  line-height: 1;
+}
+.badge-item .lock {
+  position: absolute;
+  bottom: -4px; right: -4px;
+  background: #888;
+  color: #FFF;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.badge-title { font-size: 13px; font-weight: 600; }
+.badge-date { font-size: 11px; color: #999; }
+
+.fan-badge-btn {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 32px);
+  max-width: 358px;
+  padding: 16px;
+  background: #B7A4B8;
+  color: #FFF;
+  border: none;
+  border-radius: 40px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+/* ========= 模式页 ========= */
+.mode-section { margin-top: 16px; }
+.section-title {
+  padding: 8px 16px;
+  font-size: 13px;
+  color: #999;
+}
+.mode-list {
+  background: #FFF;
+  border-radius: 14px;
+  margin: 0 12px;
+  overflow: hidden;
+}
+.mode-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  font-size: 15px;
+  cursor: pointer;
+  border-bottom: 1px solid #F5F5F5;
+}
+.mode-item:last-child { border-bottom: none; }
+.mode-item .check {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: #10B981;
+  color: #FFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+}
+.mode-item .circle {
+  width: 22px; height: 22px;
+  border: 1.5px solid #DDD;
+  border-radius: 50%;
+}
+
+/* ========= 响应式 ========= */
+@media (max-width: 380px) {
+  .idol-content, .user-group { max-width: 78%; }
+  .action-menu .item { min-width: 52px; padding: 6px 8px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============ 聊天页 ============ -->
+<div class="page active" id="chatPage">
+  <div class="status-bar">
+    <span class="timeDisplay" id="timeDisplay">9:41</span>
+    <span class="status-icons">
+      <span class="signal">
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar active"></span>
+      </span>
+      
+      <span class="battery">
+        <span class="battery-body">
+          <span class="battery-level"></span>
+        </span>
+        <span class="battery-tip"></span>
+      </span>
+    </span>
+  </div>
+  
+  <div class="nav-bar">
+    <span class="back">‹</span>
+    <span class="title">카!이!</span>
+    <span class="right">
+      <span class="icon-btn" onclick="showPage('searchPage')">🔍</span>
+      <span class="icon-btn" onclick="showPage('detailPage')">⋯</span>
+    </span>
+  </div>
+
+  <!-- 💜+N 徽章 - 三个点下面 -->
+  <div class="bubble-badge-under-nav">
+    <span class="heart">💜</span>
+    <span class="count">+<span id="bubbleDays">1</span></span>
+  </div>
+
+  <div class="chat" id="chatContainer"></div>
+
+  <div class="input-bar">
+    <input placeholder="输入消息..." id="messageInput" onkeypress="handleEnter(event)" />
+    <button class="emoji-btn-new" onclick="toggleEmojiPanel()">☺</button>
+  </div>
+</div>
+
+<!-- ============ Emoji 面板 ============ -->
+<div class="emoji-panel" id="emojiPanel">
+  <div class="emoji-tabs">
+    <span class="tab active" data-cat="smileys">😀</span>
+    <span class="tab" data-cat="gestures">👍</span>
+    <span class="tab" data-cat="hearts">❤️</span>
+    <span class="tab" data-cat="animals">🐱</span>
+    <span class="tab" data-cat="food">🍎</span>
+  </div>
+  <div class="emoji-grid" id="emojiGrid"></div>
+</div>
+
+<!-- ============ 详情页 ============ -->
+<div class="page" id="detailPage">
+  <div class="status-bar">
+    <span class="timeDisplay">9:41</span>
+    <span class="status-icons">
+      <span class="signal">
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar active"></span>
+      </span>
+      
+      <span class="battery">
+        <span class="battery-body">
+          <span class="battery-level"></span>
+        </span>
+        <span class="battery-tip"></span>
+      </span>
+    </span>
+  </div>
+  
+  <div class="nav-bar">
+    <span class="back" onclick="showPage('chatPage')">‹</span>
+    <span class="title">聊天详情</span>
+    <span class="right"></span>
+  </div>
+
+  <!-- 艺人卡片 -->
+  <div class="detail-profile">
+    <div class="avatar-ring" style="width:56px;height:56px;">
+      <img src="avatar.jpg" alt="idol">
+    </div>
+    <div class="info">
+      <h3>
+        <span class="badge">ARTIST</span>
+        카!이!
+        <span class="bubble-badge-new"><span class="heart">💜</span>+<span id="bubbleDaysDetail">1</span></span>
+      </h3>
+      <div class="expire">2026/05/20 到期</div>
+    </div>
+  </div>
+
+  <!-- 用户卡片（可编辑） -->
+  <div class="detail-profile" style="padding-top:0;" onclick="showPage('profilePage')">
+    <div class="user-avatar" style="width:48px;height:48px;" id="userAvatarDisplay">
+      <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=fan&backgroundColor=c4b5fd" alt="user">
+    </div>
+    <div class="user-info">
+      <h3 id="userNicknameDisplay">财神爷的心尖宠</h3>
+      <div style="font-size:12px;color:#999;margin-top:2px;">点击编辑资料</div>
+    </div>
+  </div>
+
+  <!-- OUR BOX -->
+  <div class="our-box" onclick="showPage('badgePage')">
+    <span class="heart">💚</span>
+    <span>OUR BOX · 泡泡养成日记</span>
+  </div>
+
+  <!-- 设置列表 -->
+  <div class="detail-list">
+    <div class="detail-item" onclick="toast('图片与视频')">
+      <span>图片与视频</span><span class="arrow">›</span>
+    </div>
+    <div class="detail-item" onclick="showPage('chatSettingsPage')">
+      <span>聊天室设置</span><span class="arrow">›</span>
+    </div>
+    <div class="detail-item" onclick="showPage('translateSettingsPage')">
+      <span>翻译设置</span>
+      <span><span class="value" id="transSettingsHint">自动翻译 · 中文</span><span class="arrow">›</span></span>
+    </div>
+  </div>
+
+  <div class="detail-list detail-group">
+    <div class="detail-item" onclick="showPage('badgePage')">
+      <span>bubble 成就勋章</span><span class="arrow">›</span>
+    </div>
+    <div class="detail-item" onclick="toast('已添加到桌面')">
+      <span>添加到桌面</span><span class="arrow">›</span>
+    </div>
+    <div class="detail-item" onclick="showPage('modePage')">
+      <span>设置 bubble 模式</span>
+      <span><span class="value">默认模式</span><span class="arrow">›</span></span>
+    </div>
+    <div class="detail-item" onclick="toast('跳转续费管理')">
+      <span>管理自动续费</span><span class="arrow">›</span>
+    </div>
+  </div>
+
+  <div class="detail-list detail-group">
+    <div class="detail-item" onclick="toast('举报已提交')">
+      <span>举报</span><span class="arrow">›</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 用户资料编辑页 ============ -->
+<div class="page" id="profilePage">
+  <div class="status-bar">
+    <span class="timeDisplay">9:41</span>
+    <span class="status-icons">
+      <span class="signal">
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar active"></span>
+      </span>
+      
+      <span class="battery">
+        <span class="battery-body">
+          <span class="battery-level"></span>
+        </span>
+        <span class="battery-tip"></span>
+      </span>
+    </span>
+  </div>
+  
+  <div class="nav-bar">
+    <span class="back" onclick="showPage('detailPage')">‹</span>
+    <span class="title">编辑资料</span>
+    <span class="right"></span>
+  </div>
+
+  <div style="padding: 20px; text-align: center;">
+    <div class="user-avatar" style="width:80px;height:80px;margin:0 auto 16px;cursor:pointer;" onclick="openAvatarPicker()">
+      <img id="profileAvatarImg" src="https://api.dicebear.com/7.x/avataaars/svg?seed=fan&backgroundColor=c4b5fd" alt="user">
+    </div>
+    <p style="color:#8B5CF6;font-size:13px;cursor:pointer;" onclick="openAvatarPicker()">点击更换头像</p>
+  </div>
+
+  <div class="settings-list">
+    <div class="setting-item" onclick="editNickname()">
+      <div>
+        <div class="label">昵称</div>
+        <div class="sub">设置你在聊天中显示的昵称</div>
+      </div>
+      <div class="value"><span id="profileNickname">财神爷的心尖宠</span> ›</div>
+    </div>
+    <div class="setting-item" onclick="editJoinDate()">
+      <div>
+        <div class="label">守护起始日</div>
+        <div class="sub">从哪天开始守护 카!이!</div>
+      </div>
+      <div class="value"><span id="profileJoinDate">2026-04-19</span> ›</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 聊天室设置页 ============ -->
+<div class="page" id="chatSettingsPage">
+  <div class="status-bar">
+    <span class="timeDisplay">9:41</span>
+    <span class="status-icons">
+      <span class="signal">
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar active"></span>
+      </span>
+      
+      <span class="battery">
+        <span class="battery-body">
+          <span class="battery-level"></span>
+        </span>
+        <span class="battery-tip"></span>
+      </span>
+    </span>
+  </div>
+  
+  <div class="nav-bar">
+    <span class="back" onclick="showPage('detailPage')">‹</span>
+    <span class="title">聊天设置</span>
+    <span class="right"></span>
+  </div>
+
+  <div class="settings-list">
+    <div class="setting-item" onclick="editRoomName()">
+      <div class="label">聊天室名称</div>
+      <div class="value"><span id="roomName">카!이!</span> ›</div>
+    </div>
+    <div class="setting-item" onclick="editAlias()">
+      <div>
+        <div class="label">设置爱称</div>
+        <div class="sub">您可以设置艺人称呼您的爱称</div>
+      </div>
+      <div class="value"><span id="aliasVal">未设置</span> ›</div>
+    </div>
+  </div>
+
+  <div class="settings-group">
+    <div class="setting-item" onclick="startNewChat()" style="cursor:pointer;">
+      <div>
+        <div class="label" style="color:#FF3B30;">开始新对话</div>
+        <div class="sub">清空当前对话，开启全新聊天</div>
+      </div>
+      <span style="color:#8E8E93;">›</span>
+    </div>
+  </div>
+
+  <div class="settings-group">
+    <div class="setting-item">
+      <div>
+        <div class="label">置顶聊天</div>
+        <div class="sub">在聊天列表中置顶</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="settingPinChat">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="setting-item">
+      <div>
+        <div class="label">消息免打扰</div>
+        <div class="sub">关闭后，将不再收到该艺人的消息推送</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="settingMuteChat">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="settings-group">
+    <div class="setting-item"><span class="label">聊天室装扮</span><span>›</span></div>
+    <div class="setting-item"><span class="label">已读样式</span><span class="value">默认 ›</span></div>
+    <div class="setting-item"><span class="label">设置提示音</span><span class="value">跟随系统 ›</span></div>
+    <div class="setting-item"><span class="label">字体字号</span><span class="value">默认 ›</span></div>
+    <div class="setting-item">
+      <div>
+        <div class="label">显示 ARTIST 徽章</div>
+        <div class="sub">关闭后，对话窗内不显示 ARTIST 徽章</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="settingShowBadge" checked onchange="toggleArtistBadge(this.checked)">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="setting-item">
+      <div>
+        <div class="label">显示我的头像</div>
+        <div class="sub">关闭后，对话窗内不显示自己的头像</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="settingShowMyAvatar" checked onchange="toggleMyAvatar(this.checked)">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 翻译设置页 ============ -->
+<div class="page" id="translateSettingsPage">
+  <div class="status-bar">
+    <span class="timeDisplay">9:41</span>
+    <span class="status-icons">
+      <span class="signal">
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar active"></span>
+      </span>
+      
+      <span class="battery">
+        <span class="battery-body">
+          <span class="battery-level"></span>
+        </span>
+        <span class="battery-tip"></span>
+      </span>
+    </span>
+  </div>
+  
+  <div class="nav-bar">
+    <span class="back" onclick="showPage('detailPage')">‹</span>
+    <span class="title">翻译设置</span>
+    <span class="right"></span>
+  </div>
+
+  <div class="settings-list">
+    <div class="setting-item">
+      <div>
+        <div class="label">艺人消息翻译</div>
+        <div class="sub">翻译设置将对所有艺人生效</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="tsArtistTrans" checked onchange="saveTS()">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="setting-item" onclick="pickLang('artistTargetLang')">
+      <div class="label">目标翻译语言</div>
+      <div class="value"><span id="artistTargetLang">中文 (简体)</span> ›</div>
+    </div>
+    <div class="setting-item">
+      <div>
+        <div class="label">消息自动翻译</div>
+        <div class="sub">系统会自动帮你翻译收到的艺人消息</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="tsAutoTrans" checked onchange="saveTS()">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="settings-group">
+    <div class="setting-item">
+      <div>
+        <div class="label">发送翻译</div>
+        <div class="sub">开启后，输入文字时展示翻译按钮</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="tsSendTrans" checked onchange="saveTS()">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="setting-item" onclick="pickLang('userTargetLang')">
+      <div class="label">目标翻译语言</div>
+      <div class="value"><span id="userTargetLang">韩语</span> ›</div>
+    </div>
+  </div>
+
+  <div class="settings-group">
+    <div class="setting-item">
+      <div class="label">语音自动转文字</div>
+      <label class="switch">
+        <input type="checkbox" id="tsVoice2Text" checked onchange="saveTS()">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 泡泡养成日记（勋章页） ============ -->
+<div class="page" id="badgePage">
+  <div class="status-bar" style="background:transparent;border:none;">
+    <span class="timeDisplay" style="color:#FFF;">9:41</span>
+    <span class="status-icons" style="color:#FFF;">
+      <span class="signal">
+        <span class="bar" style="background:#FFF;"></span>
+        <span class="bar" style="background:#FFF;"></span>
+        <span class="bar" style="background:#FFF;"></span>
+        <span class="bar active" style="background:#FFF;"></span>
+      </span>
+      <span class="wifi" style="color:#FFF;">◎</span>
+      <span class="battery">
+        <span class="battery-body" style="border-color:#FFF;">
+          <span class="battery-level" style="background:#FFF;"></span>
+        </span>
+        <span class="battery-tip" style="background:#FFF;"></span>
+      </span>
+    </span>
+  </div>
+  
+  <div class="nav-bar" style="background: transparent; border: none;">
+    <span class="back" onclick="showPage('detailPage')" style="color: #FFF;">‹</span>
+    <span class="title" style="color:#FFF;">泡泡养成日记</span>
+    <span class="right" style="color:#FFF;"></span>
+  </div>
+
+  <div class="badge-hero">
+    <img src="avatar.jpg" id="badgeHeroImg"/>
+    <div class="badge-card">
+      <div class="badge-header">
+        <h3>我的泡泡勋章</h3>
+        <span class="progress">收集中 <span id="badgeCollected">1</span>/5</span>
+      </div>
+      <div class="badge-grid" id="badgeGrid"></div>
+    </div>
+  </div>
+
+  <button class="fan-badge-btn" onclick="toast('乐迷勋章敬请期待')">查看TA的乐迷勋章</button>
+</div>
+
+<!-- ============ 模式与自定义页 ============ -->
+<div class="page" id="modePage">
+  <div class="status-bar">
+    <span class="timeDisplay">9:41</span>
+    <span class="status-icons">
+      <span class="signal">
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar active"></span>
+      </span>
+      
+      <span class="battery">
+        <span class="battery-body">
+          <span class="battery-level"></span>
+        </span>
+        <span class="battery-tip"></span>
+      </span>
+    </span>
+  </div>
+  
+  <div class="nav-bar">
+    <span class="back" onclick="showPage('detailPage')">‹</span>
+    <span class="title">模式与自定义</span>
+    <span class="right"></span>
+  </div>
+
+  <div class="mode-section">
+    <div class="section-title">模式选择</div>
+    <div class="mode-list">
+      <div class="mode-item" onclick="selectMode('default')">
+        <span>默认模式</span><span class="check">✓</span>
+      </div>
+      <div class="mode-item" onclick="selectMode('simple')">
+        <span>简洁模式</span><span class="circle"></span>
+      </div>
+      <div class="mode-item" onclick="selectMode('large')">
+        <span>大字模式</span><span class="circle"></span>
+      </div>
+      <div class="mode-item" onclick="selectMode('chat')">
+        <span>聊天模式</span><span class="circle"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="mode-section">
+    <div class="section-title">自定义页面</div>
+    <div class="mode-list">
+      <div class="mode-item" onclick="toast('我的')"><span>我的</span><span>›</span></div>
+      <div class="mode-item" onclick="toast('推荐')"><span>推荐</span><span>›</span></div>
+      <div class="mode-item" onclick="toast('播放器')"><span>播放器</span><span>›</span></div>
+    </div>
+  </div>
+
+  <div class="mode-section">
+    <div class="section-title">其他设置</div>
+    <div class="mode-list">
+      <div class="mode-item">
+        <span>液态玻璃效果</span>
+        <label class="switch">
+          <input type="checkbox" checked onchange="toggleGlass(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="mode-item">
+        <span>深浅模式</span>
+        <span class="value">日间 ›</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 长按菜单 ============ -->
+<div class="menu-overlay" id="menuOverlay" onclick="hideMenu()"></div>
+<div class="action-menu" id="actionMenu">
+  <div class="item" onclick="menuAction('收藏成功', '收藏')">
+    <span class="icon">🤍</span><span class="label">收藏</span>
+  </div>
+  <div class="item" onclick="menuAction('已复制', '复制')">
+    <span class="icon">⧉</span><span class="label">复制</span>
+  </div>
+  <div class="item" onclick="toggleTranslate()">
+    <span class="icon">🚫</span><span class="label" id="toggleLabel">取消翻译</span>
+  </div>
+  <div class="item" onclick="menuAction('感谢反馈，已记录', '反馈')">
+    <span class="icon">ⓘ</span><span class="label">翻译不准</span>
+  </div>
+  <div class="item" onclick="menuAction('跳转翻译设置', '设置')">
+    <span class="icon">⚙</span><span class="label">翻译设置</span>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ==================== 全局用户数据 ====================
+const userData = JSON.parse(localStorage.getItem('userData')) || {
+  nickname: '财神爷的心尖宠',
+  avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=fan&backgroundColor=c4b5fd',
+  avatarImg: null,
+  joinDate: new Date().toISOString().split('T')[0]
+};
+
+const TS = JSON.parse(localStorage.getItem('translateSettings')) || {
+  artistTrans: true,
+  artistTargetLang: '中文 (简体)',
+  autoTrans: true,
+  sendTrans: true,
+  userTargetLang: '韩语',
+  voice2Text: true
+};
+
+// 计算加入天数
+function getBubbleDays() {
+  const join = new Date(userData.joinDate);
+  const now = new Date();
+  const days = Math.floor((now - join) / (1000 * 60 * 60 * 24)) + 1;
+  return Math.max(1, days);
+}
+
+// 初始化加入日期
+function initJoinDate() {
+  if (!userData.joinDate) {
+    userData.joinDate = new Date().toISOString().split('T')[0];
+    saveUserData();
+  }
+}
+
+// 保存用户数据
+function saveUserData() {
+  localStorage.setItem('userData', JSON.stringify(userData));
+}
+
+// 更新所有头像和昵称显示
+function renderAllUserInfo() {
+  // 详情页
+  const nicknameDisplay = document.getElementById('userNicknameDisplay');
+  if (nicknameDisplay) nicknameDisplay.textContent = userData.nickname;
+  
+  // 个人资料页
+  const profileNickname = document.getElementById('profileNickname');
+  if (profileNickname) profileNickname.textContent = userData.nickname;
+  
+  const profileDate = document.getElementById('profileJoinDate');
+  if (profileDate) profileDate.textContent = userData.joinDate;
+  
+  // 更新头像
+  const avatarSrc = userData.avatarImg || userData.avatar;
+  document.querySelectorAll('.user-avatar img').forEach(img => {
+    if (img.alt === 'user') img.src = avatarSrc;
+  });
+  
+  // 更新天数
+  updateBubbleDays();
+}
+
+// 更新天数显示
+function updateBubbleDays() {
+  const days = getBubbleDays();
+  document.getElementById('bubbleDays').textContent = days;
+  
+  // 更新详情页徽章
+  const detailBadge = document.getElementById('bubbleDaysDetail');
+  if (detailBadge) detailBadge.textContent = days;
+  
+  // 里程碑提示
+  if ([1, 33, 66, 99, 365].includes(days)) {
+    const lastShown = localStorage.getItem('lastMilestone_' + days);
+    if (!lastShown) {
+      toast(`🎉 已守护 ${days} 天！新勋章解锁`);
+      localStorage.setItem('lastMilestone_' + days, '1');
+    }
+  }
+}
+
+// 头像上传
+function openAvatarPicker() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = evt => {
+      userData.avatarImg = evt.target.result;
+      saveUserData();
+      renderAllUserInfo();
+      toast('头像已更新');
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
+
+// 昵称编辑
+function editNickname() {
+  const newName = prompt('请输入新昵称', userData.nickname);
+  if (newName && newName.trim()) {
+    userData.nickname = newName.trim();
+    saveUserData();
+    renderAllUserInfo();
+    toast('昵称已更新');
+  }
+}
+
+// 守护起始日编辑
+function editJoinDate() {
+  const newDate = prompt('请输入日期 (格式: 2026-04-19)', userData.joinDate);
+  if (newDate && /^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
+    userData.joinDate = newDate;
+    saveUserData();
+    renderAllUserInfo();
+    toast('守护起始日已更新');
+  }
+}
+
+// ==================== Emoji 数据 ====================
+const EMOJI_DATA = {
+  smileys: ['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','☺️','😚','😙','🥲','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐','🤨','😐','😑','😶','😏','😒','🙄','😬','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🤧','🥵','🥶','🥴','😵','🤯','🤠','🥳','🥸','😎','🤓','🧐','😕','😟','🙁','☹️','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','👿','💀','☠️','💩','🤡','👹','👺','👻','👽','👾','🤖'],
+  gestures: ['👍','👎','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','👋','🤚','🖐','✋','🖖','👏','🙌','🤲','🤝','🙏','✍️','💅','🤳','💪','🦾','🦿','🦵','🦶','👂','🦻','👃','🧠','🫀','🫁','🦷','🦴','👀','👁','👅','👄'],
+  hearts: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','♥️','💌','💋'],
+  animals: ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐻‍❄️','🐨','🐯','🦁','🐮','🐷','🐽','🐸','🐵','🙈','🙉','🙊','🐒','🐔','🐧','🐦','🐤','🐣','🐥','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🪱','🐛','🦋','🐌','🐞','🐜','🪰','🪲','🪳','🦟','🦗','🕷','🕸','🦂','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🦐','🦞','🦀','🐡','🐠','🐟','🐬','🐳','🐋','🦈'],
+  food: ['🍏','🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🫐','🍈','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🍆','🥑','🥦','🥬','🥒','🌶','🫑','🌽','🥕','🫒','🧄','🧅','🥔','🍠','🥐','🥯','🍞','🥖','🥨','🧀','🥚','🍳','🧈','🥞','🧇','🥓','🥩','🍗','🍖','🦴','🌭','🍔','🍟','🍕','🥪','🥙','🧆','🌮','🌯','🥗','🥘','🫕','🥫','🍝','🍜','🍲','🍛','🍣','🍱','🥟','🦪','🍤','🍙','🍚','🍘','🍥','🥠','🥮','🍢','🍡','🍧','🍨','🍦','🥧','🧁','🍰','🎂','🍮','🍭','🍬','🍫','🍿','🍩','🍪']
+};
+
+function renderEmojiPanel(category = 'smileys') {
+  const grid = document.getElementById('emojiGrid');
+  if (!grid) return;
+  grid.innerHTML = EMOJI_DATA[category].map(e =>
+    `<span onclick="insertEmoji('${e}')">${e}</span>`
+  ).join('');
+}
+
+function toggleEmojiPanel() {
+  const panel = document.getElementById('emojiPanel');
+  panel.classList.toggle('show');
+  if (panel.classList.contains('show')) renderEmojiPanel();
+}
+
+function insertEmoji(emoji) {
+  const input = document.getElementById('messageInput');
+  input.value += emoji;
+  input.focus();
+}
+
+// Emoji 标签切换
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.emoji-tabs .tab').forEach(tab => {
+    tab.onclick = () => {
+      document.querySelectorAll('.emoji-tabs .tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      renderEmojiPanel(tab.dataset.cat);
+    };
+  });
+});
+
+// ==================== 翻译设置 ====================
+function saveTS() {
+  TS.artistTrans = document.getElementById('tsArtistTrans')?.checked ?? true;
+  TS.autoTrans = document.getElementById('tsAutoTrans')?.checked ?? true;
+  TS.sendTrans = document.getElementById('tsSendTrans')?.checked ?? true;
+  TS.voice2Text = document.getElementById('tsVoice2Text')?.checked ?? true;
+  localStorage.setItem('translateSettings', JSON.stringify(TS));
+  applyTS();
+  
+  // 更新提示
+  const hint = document.getElementById('transSettingsHint');
+  if (hint) {
+    hint.textContent = TS.autoTrans ? `自动翻译 · ${TS.artistTargetLang}` : '已关闭';
+  }
+}
+
+function applyTS() {
+  document.querySelectorAll('.idol-bubble').forEach(b => {
+    if (!TS.artistTrans || !TS.autoTrans) {
+      b.classList.add('no-translate');
+    } else {
+      b.classList.remove('no-translate');
+    }
+  });
+}
+
+function pickLang(key) {
+  const options = ['中文 (简体)', '中文 (繁体)', '韩语', '英语', '日语'];
+  const current = TS[key === 'artistTargetLang' ? 'artistTargetLang' : 'userTargetLang'];
+  const choice = prompt('选择语言: ' + options.join(' / '), current);
+  if (choice && options.includes(choice)) {
+    if (key === 'artistTargetLang') {
+      TS.artistTargetLang = choice;
+    } else {
+      TS.userTargetLang = choice;
+    }
+    document.getElementById(key).textContent = choice;
+    localStorage.setItem('translateSettings', JSON.stringify(TS));
+    saveTS();
+  }
+}
+
+// ==================== 对话管理 ====================
+class ChatSession {
+  constructor() {
+    this.history = [];
+    this.maxHistory = 20;
+    this.sessionId = this.getSessionId();
+  }
+
+  // 获取或创建会话ID
+  getSessionId() {
+    let sessionId = localStorage.getItem('kai_session_id');
+    if (!sessionId) {
+      // 从URL参数获取（如果有的话）
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlSessionId = urlParams.get('s');
+      if (urlSessionId) {
+        sessionId = urlSessionId;
+      } else {
+        // 生成新的会话ID
+        sessionId = 'kai-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 4);
+      }
+      localStorage.setItem('kai_session_id', sessionId);
+      // 更新URL（不刷新页面）
+      const newUrl = window.location.pathname + '?s=' + sessionId;
+      window.history.replaceState({}, '', newUrl);
+    }
+    return sessionId;
+  }
+
+  // 从后端加载历史消息
+  async loadHistory() {
+    try {
+      const res = await fetch(`/api/history?session_id=${this.sessionId}`);
+      const data = await res.json();
+      if (data.history && data.history.length > 0) {
+        this.history = data.history;
+        // 渲染历史消息
+        for (const item of data.history) {
+          if (item.role === 'user') {
+            // 历史消息默认已读（紫色勾）
+            renderUserBubble(item.content, true);
+          } else if (item.role === 'assistant') {
+            try {
+              const parsed = JSON.parse(item.content);
+              const messages = parsed.messages || [];
+              for (const msg of messages) {
+                renderIdolBubble(msg.ko, msg.zh);
+              }
+            } catch (e) {
+              console.error('解析历史消息失败:', e);
+            }
+          }
+        }
+        return true; // 有历史消息
+      }
+    } catch (err) {
+      console.error('加载历史失败:', err);
+    }
+    return false; // 没有历史消息
+  }
+
+  // 开始新对话
+  async newChat() {
+    try {
+      // 清空后端数据
+      await fetch("/api/clear", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: this.sessionId })
+      });
+    } catch (err) {
+      console.error('清空会话失败:', err);
+    }
+    
+    // 清空本地
+    this.history = [];
+    localStorage.removeItem('kai_session_id');
+    
+    // 生成新会话ID
+    this.sessionId = 'kai-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 4);
+    localStorage.setItem('kai_session_id', this.sessionId);
+    
+    // 更新URL
+    const newUrl = window.location.pathname + '?s=' + this.sessionId;
+    window.history.replaceState({}, '', newUrl);
+    
+    // 清空聊天容器
+    const container = document.getElementById('chatContainer');
+    container.innerHTML = '';
+    
+    // 显示日期提示
+    const now = new Date();
+    const hint = document.createElement('div');
+    hint.className = 'greeting-hint';
+    hint.textContent = `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일`;
+    container.appendChild(hint);
+    
+    // 发送开场白
+    const greetings = [
+      { ko: '좋은 아침~', zh: '早安~' },
+      { ko: '나 지금 촬영 끝났어', zh: '我刚结束拍摄' },
+      { ko: '너는 뭐하고 있어?', zh: '你在干嘛呢？' }
+    ];
+    
+    greetings.forEach((msg, index) => {
+      setTimeout(() => {
+        renderIdolBubble(msg.ko, msg.zh);
+      }, (index + 1) * 1000);
+    });
+  }
+
+  async send(userMessage) {
+    const msgId = renderUserBubble(userMessage);
+    showTyping();
+
+    // 模拟"对方正在看"延迟 500~1500ms
+    setTimeout(() => markAsRead(msgId), 500 + Math.random() * 1000);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: userMessage,
+          session_id: this.sessionId
+        })
+      });
+      
+      const data = await res.json();
+      const messages = data.messages || [];
+
+      hideTyping();
+      
+      for (let i = 0; i < messages.length; i++) {
+        await sleep(600 + Math.random() * 800);
+        showTyping();
+        await sleep(400 + messages[i].ko.length * 50);
+        hideTyping();
+        renderIdolBubble(messages[i].ko, messages[i].zh);
+      }
+
+      this.history.push({ role: "user", content: userMessage });
+      this.history.push({ role: "assistant", content: JSON.stringify({ messages }) });
+      if (this.history.length > this.maxHistory) {
+        this.history = this.history.slice(-this.maxHistory);
+      }
+    } catch (err) {
+      hideTyping();
+      await this.sendLocal(userMessage);
+      console.error('API Error:', err);
+    }
+  }
+
+  async sendLocal(userMessage) {
+    const localResponses = getLocalResponse(userMessage);
+    hideTyping();
+    for (const msg of localResponses) {
+      await sleep(500 + Math.random() * 600);
+      showTyping();
+      await sleep(300 + msg.ko.length * 50);
+      hideTyping();
+      renderIdolBubble(msg.ko, msg.zh);
+    }
+  }
+}
+
+// ==================== 本地预设回复 ====================
+function getLocalResponse(msg) {
+  msg = msg.toLowerCase();
+  const responses = {
+    '哥哥': [{ko: '왜웃지 놀리디마 우리 오늘도 파이팅❤', zh: '干嘛笑啦 别闹啦 我们今天也加油❤'}],
+    '在干嘛': [{ko: '나 지금 촬영장 광어초밥 개맛있어', zh: '我现在在摄影棚 比目鱼寿司超好吃'}],
+    '뭐해': [{ko: '연습실 있어야 해 근데 오늘 초밥 먹어서 완전 회복!', zh: '得在练习室 但今天吃了寿司完全恢复了！'}],
+    '想你': [{ko: '흑 나도 보고싶어 진짜 콘서트때 보자!!!', zh: '哎我也真的超想你 演唱会见吧！！！'}],
+    '보고싶': [{ko: '흑 나도 보고싶어 진짜 콘서트때 보자!!!', zh: '哎我也真的超想你 演唱会见吧！！！'}],
+    '累': [{ko: '흑 우리辛苦했어 같이 요양하자', zh: '哎我们好辛苦 一起休养吧'}],
+    '帅': [{ko: '왜웃지 놀리디마ㅋㅋㅋ', zh: '干嘛笑啦 别闹啦哈哈哈'}],
+    '吃饭': [{ko: '버터떡 먹었어 개맛있어 너도 먹어봐!', zh: '吃了黄油糕超好吃 你也尝尝！'}],
+    '먹': [{ko: '버터떡 먹었어 개맛있어 너도 먹어봐!', zh: '吃了黄油糕超好吃 你也尝尝！'}],
+    '谢谢': [{ko: '헤헤 우리 파이팅하자', zh: '嘿嘿 我们一起加油吧'}],
+    '고마': [{ko: '헤헤 우리 파이팅하자', zh: '嘿嘿 我们一起加油吧'}],
+  };
+  
+  for (const [key, replies] of Object.entries(responses)) {
+    if (msg.includes(key)) return replies;
+  }
+  
+  return [{ko: 'ㅋㅋㅋ 우리 닮았어', zh: '哈哈哈哈哈哈哈哈 我们好像啊'}];
+}
+
+// ==================== 渲染函数 ====================
+function renderUserBubble(text, isRead = false) {
+  const container = document.getElementById('chatContainer');
+  const time = nowTime();
+  const avatarSrc = userData.avatarImg || userData.avatar;
+  const msgId = 'msg_' + Date.now();
+  
+  const html = `
+    <div class="user-msg" id="${msgId}">
+      <div class="user-time">${time}</div>
+      <div class="user-group">
+        <div class="user-status" data-read="${isRead ? 'true' : 'false'}"></div>
+        <div class="user-bubble-new">${escapeHtml(text)}</div>
+      </div>
+      <div class="user-avatar" id="chatUserAvatar" style="display:${document.getElementById('settingShowMyAvatar')?.checked !== false ? 'flex' : 'none'}">
+        <img src="${avatarSrc}" alt="user">
+      </div>
+    </div>
+  `;
+  
+  container.insertAdjacentHTML('beforeend', html);
+  scrollToBottom();
+  return msgId;
+}
+
+function markAsRead(msgId) {
+  const el = document.getElementById(msgId);
+  if (el) {
+    const status = el.querySelector('.user-status');
+    if (status) {
+      status.setAttribute('data-read', 'true');
+    }
+  }
+}
+
+function renderIdolBubble(ko, zh, heartCount = null) {
+  const container = document.getElementById('chatContainer');
+  const time = nowTime();
+  const showBadge = document.getElementById('settingShowBadge')?.checked !== false;
+  
+  // 渐变爱心SVG
+  const heartSvg = `<svg class="gradient-heart" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="heartGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#6B38FB"/>
+        <stop offset="100%" stop-color="#C438FB"/>
+      </linearGradient>
+    </defs>
+    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="url(#heartGradient)"/>
+  </svg>`;
+  
+  const html = `
+    <div class="idol-msg">
+      <div class="avatar-ring">
+        <img src="avatar.jpg" alt="idol">
+      </div>
+      <div class="idol-content" style="padding-top: 2px;">
+        ${showBadge ? `<div class="artist-tag">
+          <span class="badge">ARTIST</span>
+          <span class="name" style="font-size:14px;font-weight:600;color:#111;line-height:1.2;">카!이!</span>
+        </div>` : ''}
+        <div class="bubble-row">
+          <div class="idol-bubble" data-bubble style="max-width:230px;">
+            <p class="original" style="margin:0;word-break:keep-all;">${escapeHtml(ko).replace(/\n/g, '<br>')}</p>
+            ${zh ? `<div class="divider"></div><p class="translation" style="margin:0;word-break:keep-all;">${escapeHtml(zh).replace(/\n/g, '<br>')}</p>` : ''}
+          </div>
+          <div class="heart-reaction">
+            ${heartCount ? `<div class="heart-reaction-box">${heartSvg}<span style="font-size:12px;font-weight:600;color:#111;">+${heartCount}</span></div>` : ''}
+            <span class="timestamp">${time}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  container.insertAdjacentHTML('beforeend', html);
+  applyTS();
+  initBubbleMenu();
+  scrollToBottom();
+}
+
+function showTyping() {
+  if (document.getElementById("typingIndicator")) return;
+  const container = document.getElementById('chatContainer');
+  const html = `
+    <div class="idol-msg" id="typingIndicator">
+      <div class="avatar-ring">
+        <img src="avatar.jpg" alt="idol">
+      </div>
+      <div class="idol-content">
+        <div class="idol-bubble" style="padding: 14px 20px;">
+          <div class="typing-dots">
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  container.insertAdjacentHTML('beforeend', html);
+  scrollToBottom();
+}
+
+function hideTyping() {
+  document.getElementById("typingIndicator")?.remove();
+}
+
+// ==================== 工具函数 ====================
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function nowTime() {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+function scrollToBottom() {
+  setTimeout(() => {
+    const container = document.getElementById('chatContainer');
+    if (container) container.scrollTop = container.scrollHeight;
+  }, 50);
+}
+
+// ==================== 发送消息 ====================
+const session = new ChatSession();
+
+function sendMessage(text) {
+  if (!text.trim()) return;
+  document.getElementById('messageInput').value = '';
+  session.send(text);
+}
+
+function handleEnter(e) {
+  if (e.key === 'Enter') {
+    sendMessage(document.getElementById('messageInput').value);
+  }
+}
+
+// ==================== 页面切换 ====================
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+  
+  // 如果是勋章页，渲染勋章
+  if (id === 'badgePage') renderBadges();
+}
+
+// ==================== Toast ====================
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+// ==================== 长按菜单 ====================
+let currentBubble = null;
+let pressTimer = null;
+
+function initBubbleMenu() {
+  document.querySelectorAll('[data-bubble]').forEach(b => {
+    if (b.dataset.init) return;
+    b.dataset.init = 'true';
+    
+    const start = (e) => {
+      pressTimer = setTimeout(() => showMenu(b, e), 400);
+    };
+    const cancel = () => clearTimeout(pressTimer);
+    
+    b.addEventListener('touchstart', start, { passive: true });
+    b.addEventListener('touchend', cancel);
+    b.addEventListener('touchmove', cancel);
+    b.addEventListener('mousedown', start);
+    b.addEventListener('mouseup', cancel);
+    b.addEventListener('mouseleave', cancel);
+    b.addEventListener('contextmenu', e => { e.preventDefault(); showMenu(b, e); });
+  });
+}
+
+function showMenu(bubble, e) {
+  currentBubble = bubble;
+  const menu = document.getElementById('actionMenu');
+  const overlay = document.getElementById('menuOverlay');
+  
+  const rect = bubble.getBoundingClientRect();
+  let top = window.scrollY + rect.top - 80;
+  let left = rect.left;
+  
+  if (top < 100) top = window.scrollY + rect.bottom + 10;
+  
+  menu.style.top = top + 'px';
+  menu.style.left = Math.min(left, window.innerWidth - 320) + 'px';
+  
+  menu.classList.add('show');
+  overlay.classList.add('show');
+  
+  document.getElementById('toggleLabel').textContent = 
+    bubble.classList.contains('no-translate') ? '显示翻译' : '取消翻译';
+}
+
+function hideMenu() {
+  document.getElementById('actionMenu').classList.remove('show');
+  document.getElementById('menuOverlay').classList.remove('show');
+}
+
+function menuAction(msg, action) {
+  if (action === '复制' && currentBubble) {
+    const original = currentBubble.querySelector('.original').textContent;
+    const translation = currentBubble.querySelector('.translation').textContent;
+    navigator.clipboard.writeText(`原文：${original}\n翻译：${translation}`);
+  }
+  if (action === '设置') {
+    showPage('translateSettingsPage');
+  }
+  toast(msg);
+  hideMenu();
+}
+
+function toggleTranslate() {
+  if (!currentBubble) return;
+  currentBubble.classList.toggle('no-translate');
+  toast(currentBubble.classList.contains('no-translate') ? '已隐藏翻译' : '已显示翻译');
+  hideMenu();
+}
+
+// ==================== 设置页功能 ====================
+function editRoomName() {
+  const newName = prompt('聊天室名称', document.getElementById('roomName').textContent);
+  if (newName && newName.trim()) {
+    document.getElementById('roomName').textContent = newName.trim();
+    toast('聊天室名称已更新');
+  }
+}
+
+function editAlias() {
+  const newAlias = prompt('设置爱称（艺人称呼您的名字）', document.getElementById('aliasVal').textContent === '未设置' ? '' : document.getElementById('aliasVal').textContent);
+  if (newAlias !== null) {
+    document.getElementById('aliasVal').textContent = newAlias.trim() || '未设置';
+    toast('爱称已设置');
+  }
+}
+
+function toggleArtistBadge(show) {
+  document.querySelectorAll('.artist-tag').forEach(tag => {
+    tag.style.display = show ? 'flex' : 'none';
+  });
+}
+
+function toggleMyAvatar(show) {
+  document.querySelectorAll('#chatUserAvatar').forEach(avatar => {
+    avatar.style.display = show ? 'block' : 'none';
+  });
+}
+
+function selectMode(mode) {
+  document.querySelectorAll('.mode-item .check, .mode-item .circle').forEach((el, i) => {
+    const items = ['default','simple','large','chat'];
+    if (items.indexOf(mode) === i) {
+      el.className = 'check';
+      el.textContent = '✓';
+    } else {
+      el.className = 'circle';
+      el.textContent = '';
+    }
+  });
+  localStorage.setItem('bubbleMode', mode);
+  toast('已切换到 ' + mode);
+}
+
+function toggleGlass(enabled) {
+  toast('液态玻璃效果 ' + (enabled ? '已开启' : '已关闭'));
+}
+
+// ==================== 勋章页 ====================
+const BADGES = [
+  { day: 1, title: '哇 守护1天！', img: '💗', unlockKey: 'day1' },
+  { day: 2, title: '哇 收到回信！', img: '💖', unlockKey: 'reply' },
+  { day: 33, title: '哇 守护33天！', img: '💜', unlockKey: 'day33' },
+  { day: 66, title: '哇 守护66天！', img: '💝', unlockKey: 'day66' },
+  { day: 99, title: '哇 守护99天！', img: '💘', unlockKey: 'day99' }
+];
+
+function renderBadges() {
+  const days = getBubbleDays();
+  const collected = BADGES.filter(b => days >= b.day).length;
+  const collectedEl = document.getElementById('badgeCollected');
+  if (collectedEl) collectedEl.textContent = collected;
+
+  const grid = document.getElementById('badgeGrid');
+  if (!grid) return;
+  
+  grid.innerHTML = BADGES.map(b => {
+    const unlocked = days >= b.day;
+    return `
+      <div class="badge-item ${unlocked ? '' : 'locked'}">
+        <div class="badge-bubble">
+          <span class="badge-emoji">${b.img}</span>
+          ${unlocked ? `<span class="badge-day">${b.day}</span>` : '<span class="lock">🔒</span>'}
+          <span class="badge-tag">KAI<br>bubble</span>
+        </div>
+        <div class="badge-title">${b.title}</div>
+        ${unlocked ? `<div class="badge-date">${userData.joinDate}</div>` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+// ==================== 时间更新 ====================
+function updateTime() {
+  const now = new Date();
+  const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  // 更新所有时间显示
+  document.querySelectorAll('.timeDisplay').forEach(el => {
+    el.textContent = timeStr;
+  });
+}
+setInterval(updateTime, 1000);
+
+// ==================== 新对话 ====================
+function startNewChat() {
+  if (confirm('确定要开始新对话吗？当前对话历史将被清空。')) {
+    session.newChat();
+    showPage('chatPage');
+    toast('已开启新对话');
+  }
+}
+
+// ==================== 初始加载 ====================
+window.addEventListener('DOMContentLoaded', async () => {
+  // 初始化用户数据
+  initJoinDate();
+  renderAllUserInfo();
+  
+  // 初始化翻译设置
+  saveTS();
+  
+  const container = document.getElementById('chatContainer');
+  
+  // 尝试加载历史消息
+  const hasHistory = await session.loadHistory();
+  
+  // 如果没有历史消息，显示开场白
+  if (!hasHistory) {
+    const hint = document.createElement('div');
+    hint.className = 'greeting-hint';
+    // 获取当前日期，格式：2026年4月20日
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const day = now.getDate();
+    hint.textContent = `${year}년 ${month}월 ${day}일`;
+    container.appendChild(hint);
+    
+    const greetings = [
+      { ko: '좋은 아침~', zh: '早安~' },
+      { ko: '나 지금 촬영 끝났어', zh: '我刚结束拍摄' },
+      { ko: '너는 뭐하고 있어?', zh: '你在干嘛呢？' }
+    ];
+    
+    greetings.forEach((msg, index) => {
+      setTimeout(() => {
+        renderIdolBubble(msg.ko, msg.zh);
+      }, (index + 1) * 1000);
+    });
+  }
+});
+</script>
+
+</body>
+</html>
